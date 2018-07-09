@@ -112,7 +112,7 @@ public:
 		}
 	}
 
-	bool GridObject::BeenVistited(Coordinates item)
+	bool GridObject::BeenVisited(Coordinates item)
 	{
 		return visited[item.y*width + item.x];
 	}
@@ -212,7 +212,7 @@ vector<string> traverseInAllDirections(Coordinates& current, GridObject *grid, v
 		// and has not been visited yet
 		if ((grid->InGrid(targetPositions[i])) 
 			&& ('X' != (grid->Item(targetPositions[i]))) 
-			&& (!grid->BeenVistited(targetPositions[i])))
+			&& (!grid->BeenVisited(targetPositions[i])))
 		{
 			// Create a copy of the path so far
 			vector<string> resultPath = path; 
