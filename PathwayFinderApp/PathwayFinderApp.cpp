@@ -9,15 +9,15 @@
 #include "ctype.h"
 #include <string>
 #include <vector>
+#include <iostream>
 
 using namespace std;
 
-static char *gridText[] = {
+static vector<string> gridText = {
 	"       X B  ",
 	"   A   X   ",
 	"           ",
 	"       XXXXX",
-	NULL,
 };
 
 /// <summary>
@@ -32,21 +32,33 @@ public:
 	int x;
 	int y;
 
-	bool Coordinates::operator==(Coordinates& a)
+	bool operator==(const Coordinates& a)
 	{
 		return ((a.x == x) && (a.y == y));
 	}
 
-	Coordinates& Coordinates::operator+= (Coordinates& a)
+	Coordinates& operator+= (const Coordinates& a)
 	{
 		x += a.x;
 		y += a.y;
 		return *this;
 	}
 
-	char *Coordinates::toString(char *buffer) {
-		sprintf(buffer, "(%d,%d)", x, y);
-		return buffer;
+	Coordinates& operator= (const Coordinates& c)
+	{
+		x = c.x;
+		y = c.y;
+		return *this;
+	}
+
+	bool friend operator==(const Coordinates& a, const Coordinates& b)
+	{
+		return (a.x == b.x && a.y == b.y);
+	}
+
+	friend std::ostream& operator<<(std::ostream& stream, const Coordinates& val)
+	{
+		return stream << "(" << val.x << "," << val.y << ")";
 	}
 };
 
@@ -61,22 +73,19 @@ public:
 	/// Locate the start [Aa] and end points [Bb]
 	/// Initialize the binary visited bool array (linear)
 	/// </summary>
-	GridObject::GridObject(char **array)
+	GridObject::GridObject(vector<string> textArray)
 	{
-		data = array;
-		char **str = data;
-		height = 0;
-		width = -1;
-		while (*str != NULL)
+		data = textArray;
+		height = textArray.size();
+		width = 0;
+		for (int i = 0; i< height; i++)
 		{
-			int length = strlen(*str);
-			FindPoints(*str);
+			size_t length = (data[i]).length();
+			FindPoints(data[i], i);
 			if (length > width)
 			{
 				width = length;
 			}
-			str++;
-			height++;
 		}
 		visited = new bool[width*height];
 		
@@ -102,13 +111,13 @@ public:
 	char GridObject::Item(Coordinates item)
 	{
 		// If the data isn't there assume it is a wall
-		if (!InGrid(item) && (item.x >= (int)strlen(data[item.y])))
+		if (!InGrid(item) && (item.x >= data[item.y].length()))
 		{
 			return 'X';
 		}
 		else
 		{
-			return *(data[item.y] + item.x);
+			return data[item.y].substr(item.x,1)[0];
 		}
 	}
 
@@ -121,24 +130,24 @@ public:
 		visited[item.y*width + item.x] = true;
 	}
 
-	int Width() { return width;  }
-	int Height() { return height; }
+	size_t Width() { return width;  }
+	size_t Height() { return height; }
 	Coordinates StartingPoint(){ return startingPoint; }
 	Coordinates EndingPoint() { return endingPoint; }
+	vector<Coordinates> Null() { return (vector<Coordinates>)NULL; }
 
 private:
-	char **data;
-	int height;
-	int width;
+	vector<string> data;
+	size_t height;
+	size_t width;
 	Coordinates startingPoint;
 	Coordinates endingPoint;
 	bool *visited;
 
 private:
 	// Helper function to locate startPoint [Aa] and endingPoint [Bb] 
-	void GridObject::FindPoints(char *row)
+	void GridObject::FindPoints(string str, int yCoord)
 	{
-		string str = string(row);
 		size_t foundAt = 0;
 		while (foundAt != string::npos)
 		{
@@ -149,8 +158,8 @@ private:
 					('A' == toupper(str[foundAt])) ? 
 					&startingPoint : &endingPoint;
 
-				point->x = foundAt;
-				point->y = height;
+				point->x = (int)foundAt;
+				point->y = yCoord;
 
 				// Continue searching at next character
 				foundAt++;
@@ -168,10 +177,6 @@ private:
 /// faster.
 /// </remarks>
 static vector<Coordinates> allDirections = {
-	Coordinates(-1,-1),
-	Coordinates(1,1),
-	Coordinates(1,-1),
-	Coordinates(-1,1),
 	Coordinates(-1,0),
 	Coordinates(1,0),
 	Coordinates(0,-1),
@@ -179,14 +184,12 @@ static vector<Coordinates> allDirections = {
 };
 
 /// <summary>
-/// Traverses in 8 different directions until it hits a wall or the edge
+/// Traverses in different directions until it hits a wall or the edge
 ///	Returns null if no path, otherwise the first path found that works
 /// </summary>
-vector<string> traverseInAllDirections(Coordinates& current, GridObject *grid, vector<string> path)
+vector<Coordinates> traverseInAllDirections(Coordinates current, GridObject *grid, vector<Coordinates> path)
 {
-	char buffer[100];
-	sprintf(buffer, "(%d,%d)", current.x, current.y);
-	path.push_back(buffer);
+	path.push_back(current);
 
 	grid->Visited(current);
 
@@ -197,7 +200,7 @@ vector<string> traverseInAllDirections(Coordinates& current, GridObject *grid, v
 	}
 
 	// Set return value
-	vector<string> results = (vector<string>)NULL;
+	vector<Coordinates> results = (vector<Coordinates>)NULL;
 
 	// Get a copy of the directions vector which we will 
 	// add to the current coordinates to determine our 
@@ -215,13 +218,13 @@ vector<string> traverseInAllDirections(Coordinates& current, GridObject *grid, v
 			&& (!grid->BeenVisited(targetPositions[i])))
 		{
 			// Create a copy of the path so far
-			vector<string> resultPath = path; 
+			vector<Coordinates> resultPath = path; 
 
 			// So the successful path can be recorded if it ends up being successful
 			results = traverseInAllDirections(targetPositions[i], grid, resultPath);
 
 			// Return immediately to caller since we have a match
-			if (results != (vector<string>)NULL) break;
+			if (results != (vector<Coordinates>)NULL) break;
 		}
 	}
 	return results;
@@ -230,34 +233,31 @@ vector<string> traverseInAllDirections(Coordinates& current, GridObject *grid, v
 
 int main()
 {
-	char buffer[40];
 	GridObject grid(gridText);
 
-	printf("StartPoint is %s\n", grid.StartingPoint().toString(buffer));
-	printf("Endpoint is %s\n", grid.EndingPoint().toString(buffer));
+	cout << "StartPoint is: " << grid.StartingPoint() << endl;
+	cout << "Endpoint is: " << grid.EndingPoint() << endl;
 
-	vector<string> path, solvedPath;
+	vector<Coordinates> path, solvedPath;
 
 	solvedPath = traverseInAllDirections(
 		grid.StartingPoint(),
 		&grid, path);
 
 	// If we have a path, print it using the vector iterator
-	if (solvedPath != (vector<string>)NULL)
+	if (solvedPath != (vector<Coordinates>)NULL)
 	{
-		for (vector<string>::const_iterator i = solvedPath.begin(); i != solvedPath.end(); ++i)
+		for (vector<Coordinates>::const_iterator i = solvedPath.begin(); i != solvedPath.end(); ++i)
 		{
-			printf("%s\n", (*i).c_str());
+			cout << *i;
 		}
 	}
 	else
 	{
-		printf("Unable to find solution");
+		cout << "Unable to find solution" << endl;
 	}
-	printf("Press any key to continue");
-		
-	// Wait for keystroke when using the IDE so we can see
-	while (!kbhit());
-	getch();
+	cout << "Press enter continue" << endl;
+	string read;
+	std::getline(cin, read);
 }
 
