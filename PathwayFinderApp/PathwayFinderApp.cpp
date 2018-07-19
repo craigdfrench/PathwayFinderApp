@@ -44,6 +44,12 @@ public:
 		return *this;
 	}
 
+	friend Coordinates operator+ (const Coordinates& a, const Coordinates& b)
+	{
+		return Coordinates( a.x + b.x, a.y + b.y);
+	}
+
+
 	Coordinates& operator= (const Coordinates& c)
 	{
 		x = c.x;
@@ -78,10 +84,10 @@ public:
 		data = textArray;
 		height = textArray.size();
 		width = 0;
-		for (int i = 0; i< height; i++)
+		for (int row = 0; row< height; row++)
 		{
-			size_t length = (data[i]).length();
-			FindPoints(data[i], i);
+			size_t length = (data[row]).length();
+			FindPoints(data[row], row);
 			if (length > width)
 			{
 				width = length;
@@ -101,7 +107,7 @@ public:
 		delete visited;
 	}
 
-	bool GridObject::InGrid(Coordinates& item)
+	bool GridObject::InGrid(Coordinates item)
 	{
 		return (!(item.x < 0 || item.y < 0 || item.y >= height || item.x >= width ));
 	}
@@ -176,7 +182,7 @@ private:
 /// first in the hope that it will find the target
 /// faster.
 /// </remarks>
-static vector<Coordinates> allDirections = {
+static const vector<Coordinates> allDirections = {
 	Coordinates(-1,0),
 	Coordinates(1,0),
 	Coordinates(0,-1),
@@ -200,31 +206,31 @@ vector<Coordinates> traverseInAllDirections(Coordinates current, GridObject *gri
 	}
 
 	// Set return value
-	vector<Coordinates> results = (vector<Coordinates>)NULL;
+	vector<Coordinates> results = grid->Null();
 
 	// Get a copy of the directions vector which we will 
 	// add to the current coordinates to determine our 
 	// approach 
 	vector <Coordinates> targetPositions = allDirections;
-	for (int i = 0; i < (int)targetPositions.size(); i++)
+	for (vector<Coordinates>::const_iterator iterate = allDirections.begin(); iterate != allDirections.end(); iterate++)
 	{
-		targetPositions[i] += current;
+		Coordinates target = *iterate + current;
 
 		// If it in the grid parameters
 		// is not a wall 
 		// and has not been visited yet
-		if ((grid->InGrid(targetPositions[i])) 
-			&& ('X' != (grid->Item(targetPositions[i]))) 
-			&& (!grid->BeenVisited(targetPositions[i])))
+		if ((grid->InGrid(target)) 
+			&& ('X' != (grid->Item(target))) 
+			&& (!grid->BeenVisited(target)))
 		{
 			// Create a copy of the path so far
 			vector<Coordinates> resultPath = path; 
 
 			// So the successful path can be recorded if it ends up being successful
-			results = traverseInAllDirections(targetPositions[i], grid, resultPath);
+			results = traverseInAllDirections(target, grid, resultPath);
 
 			// Return immediately to caller since we have a match
-			if (results != (vector<Coordinates>)NULL) break;
+			if (results != grid->Null()) break;
 		}
 	}
 	return results;
@@ -249,14 +255,14 @@ int main()
 	{
 		for (vector<Coordinates>::const_iterator i = solvedPath.begin(); i != solvedPath.end(); ++i)
 		{
-			cout << *i;
+			cout << *i << endl;
 		}
 	}
 	else
 	{
 		cout << "Unable to find solution" << endl;
 	}
-	cout << "Press enter continue" << endl;
+	cout << "Press enter to continue" << endl;
 	string read;
 	std::getline(cin, read);
 }
