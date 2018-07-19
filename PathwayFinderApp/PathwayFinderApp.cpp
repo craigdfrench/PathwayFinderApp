@@ -17,8 +17,7 @@ using namespace std;
 /// </summary>
 class Coordinates
 {
-public:
-
+	public:
 	Coordinates(int setX = 0, int setY = 0)
 		: x(setX), y(setY) {}
 	int x;
@@ -91,13 +90,10 @@ public:
 		{
 			visited[i] = false;
 		}
-		
-                allDirections.push_back(Coordinates(-1,0));
-                allDirections.push_back(Coordinates(1,0));
-                allDirections.push_back(Coordinates(0,-1));
-                allDirections.push_back(Coordinates(0,1));
-
-		
+        allDirections.push_back(Coordinates(-1,0));
+        allDirections.push_back(Coordinates(1,0));
+        allDirections.push_back(Coordinates(0,-1));
+        allDirections.push_back(Coordinates(0,1));
 	}
 
 	~GridObject()
@@ -193,9 +189,9 @@ vector<Coordinates> traverseInAllDirections(Coordinates current, GridObject *gri
 	// Set return value
 	vector<Coordinates> results = grid->Null();
 
-	for (vector<Coordinates>::const_iterator iterate = grid->AllDirections().begin(); iterate != grid->AllDirections().end(); iterate++)
+	for (int index=0; index < grid->AllDirections().size(); index++)
 	{
-		Coordinates target = *iterate + current;
+		Coordinates target = grid->AllDirections()[index] + current;
 
 		// If it in the grid parameters
 		// is not a wall 
@@ -221,9 +217,10 @@ vector<Coordinates> traverseInAllDirections(Coordinates current, GridObject *gri
 int main()
 {
 	static vector<string> gridText;
-        gridText.push_back("       X B  ");
-	gridText.push_back("   A   X   ");
-       	gridText.push_back("           ");
+    
+	gridText.push_back("       X B  ");
+	gridText.push_back("   A   X    ");
+    gridText.push_back("            ");
 	gridText.push_back("       XXXXX");
 
 	GridObject grid(gridText);
@@ -238,7 +235,7 @@ int main()
 		&grid, path);
 
 	// If we have a path, print it using the vector iterator
-	if (solvedPath != (vector<Coordinates>)NULL)
+	if (solvedPath != grid.Null())
 	{
 		for (vector<Coordinates>::const_iterator i = solvedPath.begin(); i != solvedPath.end(); ++i)
 		{
@@ -249,10 +246,11 @@ int main()
 	{
 		cout << "Unable to find solution" << endl;
 	}
-	#ifndef __EMSCRIPTEN__
+
+#ifndef __EMSCRIPTEN__
 	cout << "Press enter to continue" << endl;
 	string read;
 	std::getline(cin, read);
-	#endif
+#endif
 }
 
