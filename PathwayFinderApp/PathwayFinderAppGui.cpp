@@ -1,0 +1,295 @@
+//
+// PathwayFinderApp.cpp : Quick and Dirty Program to find path between points A and B as per interview question
+// 
+// (c) 2018 Craig D. French
+
+#include "stdio.h"
+#include "string.h"
+#include "ctype.h"
+#include <string>
+#include <vector>
+#include <iostream>
+
+#include <SDL/SDL.h>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
+
+using namespace std;
+
+/// <summary>
+/// Super simple coordinates class to make things easier.
+/// </summary>
+class Coordinates
+{
+public:
+
+	Coordinates(int setX = 0, int setY = 0)
+		: x(setX), y(setY) {}
+	int x;
+	int y;
+
+	bool operator==(const Coordinates& a)
+	{
+		return ((a.x == x) && (a.y == y));
+	}
+
+	Coordinates& operator+= (const Coordinates& a)
+	{
+		x += a.x;
+		y += a.y;
+		return *this;
+	}
+
+	friend Coordinates operator+ (const Coordinates& a, const Coordinates& b)
+	{
+		return Coordinates( a.x + b.x, a.y + b.y);
+	}
+
+
+	Coordinates& operator= (const Coordinates& c)
+	{
+		x = c.x;
+		y = c.y;
+		return *this;
+	}
+
+	bool friend operator==(const Coordinates& a, const Coordinates& b)
+	{
+		return (a.x == b.x && a.y == b.y);
+	}
+
+	friend std::ostream& operator<<(std::ostream& stream, const Coordinates& val)
+	{
+		return stream << "(" << val.x << "," << val.y << ")";
+	}
+};
+
+/// <summary>
+/// Utility class for managing data for the search grid. 
+/// </summary>
+class GridObject
+{
+public: 
+	/// <summary>
+	/// Find the height, width from the grid text array
+	/// Locate the start [Aa] and end points [Bb]
+	/// Initialize the binary visited bool array (linear)
+	/// </summary>
+	GridObject(vector<string> textArray)
+	{
+		data = textArray;
+		height = textArray.size();
+		width = 0;
+		for (int row = 0; row< height; row++)
+		{
+			size_t length = (data[row]).length();
+			FindPoints(data[row], row);
+			if (length > width)
+			{
+				width = length;
+			}
+		}
+		visited = new bool[width*height];
+		
+		for (int i = 0; i < width*height; i++)
+		{
+			visited[i] = false;
+		}
+		
+                allDirections.push_back(Coordinates(-1,0));
+                allDirections.push_back(Coordinates(1,0));
+                allDirections.push_back(Coordinates(0,-1));
+                allDirections.push_back(Coordinates(0,1));
+
+		
+	}
+
+	~GridObject()
+	{
+		delete visited;
+	}
+
+	bool InGrid(Coordinates item)
+	{
+		return (!(item.x < 0 || item.y < 0 || item.y >= height || item.x >= width ));
+	}
+	
+	// Simplfy the code by assuming that if we don't have data 
+	// we will return a wall. 
+	char Item(Coordinates item)
+	{
+		// If the data isn't there assume it is a wall
+		if (!InGrid(item) && (item.x >= data[item.y].length()))
+		{
+			return 'X';
+		}
+		else
+		{
+			return data[item.y].substr(item.x,1)[0];
+		}
+	}
+
+	bool BeenVisited(Coordinates item)
+	{
+		return visited[item.y*width + item.x];
+	}
+	void Visited(Coordinates item)
+	{
+		visited[item.y*width + item.x] = true;
+	}
+
+	size_t Width() { return width;  }
+	size_t Height() { return height; }
+	Coordinates StartingPoint(){ return startingPoint; }
+	Coordinates EndingPoint() { return endingPoint; }
+	vector<Coordinates> Null() { return (vector<Coordinates>)NULL; }
+	vector<Coordinates> AllDirections() { return allDirections; }
+
+private:
+	vector<string> data;
+	vector<Coordinates> allDirections;
+	size_t height;
+	size_t width;
+	Coordinates startingPoint;
+	Coordinates endingPoint;
+	bool *visited;
+
+private:
+	// Helper function to locate startPoint [Aa] and endingPoint [Bb] 
+	void FindPoints(string str, int yCoord)
+	{
+		size_t foundAt = 0;
+		while (foundAt != string::npos)
+		{
+			foundAt = str.find_first_of("AaBb", foundAt);
+			if ( string::npos != foundAt )
+			{
+				Coordinates *point = 
+					('A' == toupper(str[foundAt])) ? 
+					&startingPoint : &endingPoint;
+
+				point->x = (int)foundAt;
+				point->y = yCoord;
+
+				// Continue searching at next character
+				foundAt++;
+			}
+		}
+	}
+};
+
+/// <summary>
+/// Traverses in different directions until it hits a wall or the edge
+///	Returns null if no path, otherwise the first path found that works
+/// </summary>
+vector<Coordinates> traverseInAllDirections(Coordinates current, GridObject *grid, vector<Coordinates> path)
+{
+	path.push_back(current);
+
+	grid->Visited(current);
+
+	// We have a match!!!
+	if (grid->EndingPoint()==current)
+	{
+		return path;
+	}
+
+	// Set return value
+	vector<Coordinates> results = grid->Null();
+
+	for (vector<Coordinates>::const_iterator iterate = grid->AllDirections().begin(); iterate != grid->AllDirections().end(); iterate++)
+	{
+		Coordinates target = *iterate + current;
+
+		// If it in the grid parameters
+		// is not a wall 
+		// and has not been visited yet
+		if ((grid->InGrid(target)) 
+			&& ('X' != (grid->Item(target))) 
+			&& (!grid->BeenVisited(target)))
+		{
+			// Create a copy of the path so far
+			vector<Coordinates> resultPath = path; 
+
+			// So the successful path can be recorded if it ends up being successful
+			results = traverseInAllDirections(target, grid, resultPath);
+
+			// Return immediately to caller since we have a match
+			if (results != grid->Null()) break;
+		}
+	}
+	return results;
+}
+
+
+int main()
+{
+	static vector<string> gridText;
+        gridText.push_back("       X B  ");
+	gridText.push_back("   A   X   ");
+       	gridText.push_back("           ");
+	gridText.push_back("       XXXXX");
+
+  SDL_Init(SDL_INIT_VIDEO);
+  SDL_Surface *screen = SDL_SetVideoMode(256, 256, 32, SDL_SWSURFACE);
+
+#ifdef TEST_SDL_LOCK_OPTS
+  EM_ASM("SDL.defaults.copyOnLock = false; SDL.defaults.discardOnLock = true; SDL.defaults.opaqueFrontBuffer = false;");
+#endif
+
+  if (SDL_MUSTLOCK(screen)) SDL_LockSurface(screen);
+  for (int i = 0; i < 256; i++) {
+    for (int j = 0; j < 256; j++) {
+#ifdef TEST_SDL_LOCK_OPTS
+      // Alpha behaves like in the browser, so write proper opaque pixels.
+      int alpha = 255;
+#else
+      // To emulate native behavior with blitting to screen, alpha component is ignored. Test that it is so by outputting
+      // data (and testing that it does get discarded)
+      int alpha = (i+j) % 255;
+#endif
+      *((Uint32*)screen->pixels + i * 256 + j) = SDL_MapRGBA(screen->format, i, j, 255-i, alpha);
+    }
+  }
+  if (SDL_MUSTLOCK(screen)) SDL_UnlockSurface(screen);
+  SDL_Flip(screen); 
+
+  printf("you should see a smoothly-colored square - no sharp lines but the square borders!\n");
+  printf("and here is some text that should be HTML-friendly: amp: |&| double-quote: |\"| quote: |'| less-than, greater-than, html-like tags: |<cheez></cheez>|\nanother line.\n");
+
+  SDL_Quit();
+
+
+	GridObject grid(gridText);
+
+	cout << "StartPoint is: " << grid.StartingPoint() << endl;
+	cout << "Endpoint is: " << grid.EndingPoint() << endl;
+
+	vector<Coordinates> path, solvedPath;
+
+	solvedPath = traverseInAllDirections(
+		grid.StartingPoint(),
+		&grid, path);
+
+	// If we have a path, print it using the vector iterator
+	if (solvedPath != (vector<Coordinates>)NULL)
+	{
+		for (vector<Coordinates>::const_iterator i = solvedPath.begin(); i != solvedPath.end(); ++i)
+		{
+			cout << *i << endl;
+		}
+	}
+	else
+	{
+		cout << "Unable to find solution" << endl;
+	}
+	#ifndef __EMSCRIPTEN__
+	cout << "Press enter to continue" << endl;
+	string read;
+	std::getline(cin, read);
+	#endif
+}
+
