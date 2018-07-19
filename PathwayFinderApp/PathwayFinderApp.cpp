@@ -4,7 +4,6 @@
 // (c) 2018 Craig D. French
 
 #include "stdio.h"
-#include "conio.h"
 #include "string.h"
 #include "ctype.h"
 #include <string>
@@ -13,13 +12,6 @@
 
 using namespace std;
 
-static vector<string> gridText = {
-	"       X B  ",
-	"   A   X   ",
-	"           ",
-	"       XXXXX",
-};
-
 /// <summary>
 /// Super simple coordinates class to make things easier.
 /// </summary>
@@ -27,7 +19,7 @@ class Coordinates
 {
 public:
 
-	Coordinates::Coordinates(int setX = 0, int setY = 0)
+	Coordinates(int setX = 0, int setY = 0)
 		: x(setX), y(setY) {}
 	int x;
 	int y;
@@ -79,7 +71,7 @@ public:
 	/// Locate the start [Aa] and end points [Bb]
 	/// Initialize the binary visited bool array (linear)
 	/// </summary>
-	GridObject::GridObject(vector<string> textArray)
+	GridObject(vector<string> textArray)
 	{
 		data = textArray;
 		height = textArray.size();
@@ -100,21 +92,27 @@ public:
 			visited[i] = false;
 		}
 		
+                allDirections.push_back(Coordinates(-1,0));
+                allDirections.push_back(Coordinates(1,0));
+                allDirections.push_back(Coordinates(0,-1));
+                allDirections.push_back(Coordinates(0,1));
+
+		
 	}
 
-	GridObject::~GridObject()
+	~GridObject()
 	{
 		delete visited;
 	}
 
-	bool GridObject::InGrid(Coordinates item)
+	bool InGrid(Coordinates item)
 	{
 		return (!(item.x < 0 || item.y < 0 || item.y >= height || item.x >= width ));
 	}
 	
 	// Simplfy the code by assuming that if we don't have data 
 	// we will return a wall. 
-	char GridObject::Item(Coordinates item)
+	char Item(Coordinates item)
 	{
 		// If the data isn't there assume it is a wall
 		if (!InGrid(item) && (item.x >= data[item.y].length()))
@@ -127,11 +125,11 @@ public:
 		}
 	}
 
-	bool GridObject::BeenVisited(Coordinates item)
+	bool BeenVisited(Coordinates item)
 	{
 		return visited[item.y*width + item.x];
 	}
-	void GridObject::Visited(Coordinates item)
+	void Visited(Coordinates item)
 	{
 		visited[item.y*width + item.x] = true;
 	}
@@ -141,9 +139,11 @@ public:
 	Coordinates StartingPoint(){ return startingPoint; }
 	Coordinates EndingPoint() { return endingPoint; }
 	vector<Coordinates> Null() { return (vector<Coordinates>)NULL; }
+	vector<Coordinates> AllDirections() { return allDirections; }
 
 private:
 	vector<string> data;
+	vector<Coordinates> allDirections;
 	size_t height;
 	size_t width;
 	Coordinates startingPoint;
@@ -152,7 +152,7 @@ private:
 
 private:
 	// Helper function to locate startPoint [Aa] and endingPoint [Bb] 
-	void GridObject::FindPoints(string str, int yCoord)
+	void FindPoints(string str, int yCoord)
 	{
 		size_t foundAt = 0;
 		while (foundAt != string::npos)
@@ -175,21 +175,6 @@ private:
 };
 
 /// <summary>
-/// Directions to traverse looking for the match
-/// </summary>
-/// <remarks>
-/// Try the search paths that move across the grid
-/// first in the hope that it will find the target
-/// faster.
-/// </remarks>
-static const vector<Coordinates> allDirections = {
-	Coordinates(-1,0),
-	Coordinates(1,0),
-	Coordinates(0,-1),
-	Coordinates(0,1),
-};
-
-/// <summary>
 /// Traverses in different directions until it hits a wall or the edge
 ///	Returns null if no path, otherwise the first path found that works
 /// </summary>
@@ -208,11 +193,7 @@ vector<Coordinates> traverseInAllDirections(Coordinates current, GridObject *gri
 	// Set return value
 	vector<Coordinates> results = grid->Null();
 
-	// Get a copy of the directions vector which we will 
-	// add to the current coordinates to determine our 
-	// approach 
-	vector <Coordinates> targetPositions = allDirections;
-	for (vector<Coordinates>::const_iterator iterate = allDirections.begin(); iterate != allDirections.end(); iterate++)
+	for (vector<Coordinates>::const_iterator iterate = grid->AllDirections().begin(); iterate != grid->AllDirections().end(); iterate++)
 	{
 		Coordinates target = *iterate + current;
 
@@ -239,6 +220,12 @@ vector<Coordinates> traverseInAllDirections(Coordinates current, GridObject *gri
 
 int main()
 {
+	static vector<string> gridText;
+        gridText.push_back("       X B  ");
+	gridText.push_back("   A   X   ");
+       	gridText.push_back("           ");
+	gridText.push_back("       XXXXX");
+
 	GridObject grid(gridText);
 
 	cout << "StartPoint is: " << grid.StartingPoint() << endl;
@@ -262,8 +249,10 @@ int main()
 	{
 		cout << "Unable to find solution" << endl;
 	}
+	#ifndef __EMSCRIPTEN__
 	cout << "Press enter to continue" << endl;
 	string read;
 	std::getline(cin, read);
+	#endif
 }
 
