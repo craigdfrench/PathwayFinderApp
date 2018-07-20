@@ -9,6 +9,10 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <istream>
+#include <iterator>
 
 using namespace std;
 
@@ -47,7 +51,7 @@ class Coordinates
 		return *this;
 	}
 
-	bool friend operator&&(const Coordinates& IsMember, const vector<Coordinates> list)
+	bool friend IsInSet(const Coordinates& IsMember, const vector<Coordinates> list)
 	{
 		for (vector<Coordinates>::const_iterator i = list.begin(); i != list.end(); i++)
 		{
@@ -84,7 +88,7 @@ public:
 /// <summary>
 /// Utility class for managing data for the search grid. 
 /// </summary>
-class GridObject
+class GridManager
 {
 public: 
 	/// <summary>
@@ -92,8 +96,7 @@ public:
 	/// Locate the start [Aa] and end points [Bb]
 	/// Initialize the binary visited bool array (linear)
 	/// </summary>
-	GridObject(vector<string> textArray) : 
-		solutionSet(NULL)
+	GridManager(vector<string> textArray) 
 	{
 		data = textArray;
 		height = textArray.size();
@@ -119,14 +122,14 @@ public:
         allDirections.push_back(Coordinates(0,1));
 	}
 
-	~GridObject()
+	~GridManager()
 	{
 		delete visited;
 	}
 
 	bool InGrid(Coordinates item)
 	{
-		return (!(item.x < 0 || item.y < 0 || item.y >= height || item.x >= width ));
+		return (item.x >= 0 && item.y >= 0 && item.y < height && item.x < width);
 	}
 	
 	// Simplfy the code by assuming that if we don't have data 
@@ -134,7 +137,7 @@ public:
 	char Item(Coordinates item)
 	{
 		// If the data isn't there assume it is a wall
-		if (!InGrid(item) && (item.x >= data[item.y].length()))
+		if (item.x >= data[item.y].length())
 		{
 			return 'X';
 		}
@@ -163,40 +166,30 @@ public:
 	{
 		solutionSet = solution;
 	}
-	void AddToWorkQueue(Coordinates c, vector<Coordinates> path) {
-		workQueue.push_back(new WorkItem(c, path));
+	void AddToWorkQueue(Coordinates c, vector<Coordinates> path) {		
+		workQueue.push_back(WorkItem(c,path));
 	}
-	vector<WorkItem *>DetachWorkQueue()
+	vector<WorkItem>DetachWorkQueue()
 	{
-		vector<WorkItem *> returnValue = workQueue;
+		vector<WorkItem> returnValue = workQueue;
 		workQueue.clear();
 		return returnValue;
 	}
 	size_t WorkQueueSize() {
 		return workQueue.size();
 	}
-	friend std::ostream& operator<<(std::ostream& stream, GridObject& val)
+	friend std::ostream& operator<<(std::ostream& stream, GridManager& val)
 	{
-		if (val.solutionSet == val.Null())
+		for (size_t row = 0; row < val.Height(); row++)
 		{
-			for (vector<string>::const_iterator it = val.data.begin(); it != val.data.end(); it++)
+			for (size_t column = 0; column < val.Width(); column++)
 			{
-				stream << *it << endl;
+				Coordinates current((int)column, (int)row);
+				char itemLetter = val.Item(current);
+				char letter = (itemLetter == ' ' && (IsInSet(current, val.solutionSet))) ? 'o' : itemLetter;
+				cout << letter;
 			}
-		}
-		else
-		{
-			for (size_t row = 0; row < val.Height(); row++)
-			{
-				for (size_t column = 0; column < val.Width(); column++)
-				{
-					Coordinates current(column, row);
-					char itemLetter = val.Item(current);
-					char letter = (itemLetter == ' ' && (current && val.solutionSet)) ? 'o' : itemLetter;
-					cout << letter;
-				}
-				cout << endl;
-			}
+			cout << endl;
 		}
 		return stream;
 	}
@@ -206,7 +199,7 @@ private:
 	vector<string> data;
 	vector<Coordinates> allDirections;
 	vector<Coordinates> solutionSet;
-	vector<WorkItem *> workQueue;
+	vector<WorkItem> workQueue;
 	size_t height;
 	size_t width;
 	Coordinates startingPoint;
@@ -238,72 +231,86 @@ private:
 };
 
 
-vector<Coordinates> ProcessWorkQueue(GridObject *grid)
+vector<Coordinates> ProcessWorkQueue(GridManager& grid)
 {
-	vector<WorkItem *> workQueue = grid->DetachWorkQueue();
+	vector<WorkItem> workQueue = grid.DetachWorkQueue();
 	for (int jobNumber = 0; jobNumber < workQueue.size(); jobNumber++)
 	{
-		workQueue[jobNumber]->path.push_back(workQueue[jobNumber]->current);
-		grid->Visited(workQueue[jobNumber]->current);
-		if (grid->EndingPoint() == workQueue[jobNumber]->current)
+		WorkItem work = workQueue[jobNumber];
+		work.path.push_back(work.current);
+		grid.Visited(work.current);
+		if (grid.EndingPoint() == work.current)
 		{
 			cout << "Found at workQueueItem: " << jobNumber << endl;
-			return workQueue[jobNumber]->path;
+			return work.path;
 		}
+		for (int index = 0; index < grid.AllDirections().size(); index++) {
 
-		for (int index = 0; index < grid->AllDirections().size(); index++)
-		{
-			Coordinates target = grid->AllDirections()[index] + workQueue[jobNumber]->current;
+			Coordinates target = grid.AllDirections()[index] + work.current;
 
 			// If it in the grid parameters
 			// is not a wall 
 			// and has not been visited yet
-			if ((grid->InGrid(target))
-				&& ('X' != (grid->Item(target)))
-				&& (!grid->BeenVisited(target)))
+			if ((grid.InGrid(target))
+				&& ('X' != (grid.Item(target)))
+				&& (!grid.BeenVisited(target)))
 			{
 				// Create a copy of the path so far
-				vector<Coordinates> resultPath = workQueue[jobNumber]->path;
+				vector<Coordinates> resultPath = work.path;
 
 				// So the successful path can be recorded if it ends up being successful
-				grid->AddToWorkQueue(target, resultPath);
+				grid.AddToWorkQueue(target, resultPath);
 			}
 		}
 	}
 	workQueue.clear();
-	return grid->Null();
+	return vector<Coordinates>();
 }
 
 
-int main()
+int main(int argc, char** argv)
 {
-	static vector<string> gridText;
+	vector<string> gridText;
     
-	gridText.push_back("       XB  XX");
-	gridText.push_back("   A   X   X");
-    gridText.push_back(" XXXXXXX   X");
-	gridText.push_back("         XXX");
 
-	GridObject grid(gridText);
+	if (argc == 2)
+	{
+		std::ifstream is(argv[1]);
+		std::string line;
+		while (std::getline(is, line))
+		{
+			std::cout << line << endl;
+			gridText.push_back(line);
+		}
+	}
+	else
+	{
+		gridText.push_back("A        XX");
+		gridText.push_back("          X");
+		gridText.push_back("XXXXXX       XX             XXX    ");
+		gridText.push_back("          XX      XXX                                      B   ");
+	}
+
+	GridManager grid(gridText);
 
 	cout << grid;
 	cout << "StartPoint is: " << grid.StartingPoint() << endl;
 	cout << "Endpoint is: " << grid.EndingPoint() << endl;
 	
-	vector<Coordinates> path, solvedPath;
+	std::vector<Coordinates> path, solvedPath;
 
 	grid.AddToWorkQueue(grid.StartingPoint(), path);
 	size_t level = 0;
 	while (grid.WorkQueueSize() > 0)
 	{
 		solvedPath = ProcessWorkQueue(
-			&grid);
+			grid);
 		if (solvedPath != grid.Null()) break;
 		cout << "Depth: " << level++ << " WorkQueueSize:" << grid.WorkQueueSize() << endl;
 	}
 	cout << grid;
 	// If we have a path, print it using the vector iterator
-	if (solvedPath != grid.Null())
+	if (!solvedPath.empty())
 	{
 		for (vector<Coordinates>::const_iterator i = solvedPath.begin(); i != solvedPath.end(); ++i)
 		{
