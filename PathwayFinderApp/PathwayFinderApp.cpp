@@ -6,6 +6,7 @@
 #include "stdio.h"
 #include "string.h"
 #include "ctype.h"
+#include "direct.h"
 #include <string>
 #include <vector>
 #include <iostream>
@@ -276,12 +277,23 @@ int main(int argc, char** argv)
 	if (argc == 2)
 	{
 		std::ifstream is(argv[1]);
-		std::string line;
-		while (std::getline(is, line))
-		{
-			std::cout << line << endl;
-			gridText.push_back(line);
+		if (is) {
+
+			std::string line;
+			while (std::getline(is, line))
+			{
+				std::cout << line << endl;
+				gridText.push_back(line);
+			}
 		}
+		else
+		{
+			char buffer[1000];
+			cerr << "Current directory: " << _getcwd(buffer, sizeof(buffer));
+			cerr << "File: " << argv[1] << " could not be opened!\n"; // Report error
+			cerr << "Error code: " << strerror_s(buffer, sizeof(buffer), errno) ; // Get some info as to why
+		}
+
 	}
 	else
 	{
