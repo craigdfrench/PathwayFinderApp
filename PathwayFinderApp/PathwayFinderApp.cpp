@@ -3,12 +3,11 @@
 // 
 // (c) 2018 Craig D. French
 
-#include "stdio.h"
-#include "string.h"
-#include "ctype.h"
-#include "direct.h"
+
 #include <string>
 #include <vector>
+#include <forward_list>
+#include <utility>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -117,10 +116,11 @@ public:
 		{
 			visited[i] = false;
 		}
-        allDirections.push_back(Coordinates(-1,0));
-        allDirections.push_back(Coordinates(1,0));
-        allDirections.push_back(Coordinates(0,-1));
-        allDirections.push_back(Coordinates(0,1));
+		
+        allDirections.emplace_front(make_pair(-1,0));
+        allDirections.emplace_front(make_pair(1,0));
+        allDirections.emplace_front(make_pair(0,-1));
+        allDirections.emplace_front(make_pair(0,1));
 	}
 
 	~GridManager()
@@ -162,7 +162,7 @@ public:
 	Coordinates StartingPoint(){ return startingPoint; }
 	Coordinates EndingPoint() { return endingPoint; }
 	vector<Coordinates> Null() { return (vector<Coordinates>)NULL; }
-	vector<Coordinates> AllDirections() { return allDirections; }
+	forward_list<pair<int,int>> AllDirections() { return allDirections; }
 	void SetSolution(vector<Coordinates> solution)
 	{
 		solutionSet = solution;
@@ -198,7 +198,7 @@ public:
 
 private:
 	vector<string> data;
-	vector<Coordinates> allDirections;
+	forward_list<pair<int, int>> allDirections;
 	vector<Coordinates> solutionSet;
 	vector<WorkItem> workQueue;
 	size_t height;
@@ -234,15 +234,15 @@ private:
 
 vector<Coordinates> ProcessWorkQueue(GridManager& grid)
 {
+
 	vector<WorkItem> workQueue = grid.DetachWorkQueue();
-	for (int jobNumber = 0; jobNumber < workQueue.size(); jobNumber++)
+	for (auto work : workQueue)
 	{
-		WorkItem work = workQueue[jobNumber];
 		work.path.push_back(work.current);
 		grid.Visited(work.current);
 		if (grid.EndingPoint() == work.current)
 		{
-			cout << "Found at workQueueItem: " << jobNumber << endl;
+			cout << "Found in workQueueItem: "s << endl;
 			return work.path;
 		}
 		for (int index = 0; index < grid.AllDirections().size(); index++) {
@@ -289,7 +289,7 @@ int main(int argc, char** argv)
 		else
 		{
 			char buffer[1000];
-			cerr << "Current directory: " << _getcwd(buffer, sizeof(buffer));
+			//cerr << "Current directory: " << _getcwd(buffer, sizeof(buffer));
 			cerr << "File: " << argv[1] << " could not be opened!\n"; // Report error
 			cerr << "Error code: " << strerror_s(buffer, sizeof(buffer), errno) ; // Get some info as to why
 		}
